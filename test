@@ -1,0 +1,3 @@
+#!/bin/sh
+
+moonc unzip.moon && luvit unzip.lua

@@ -1,12 +1,7 @@
-local insert
-do
-  local _table_0 = require('table')
-  insert = _table_0.insert
-end
-local band, lshift
+local band
 do
   local _table_0 = require('bit')
-  band, lshift = _table_0.band, _table_0.lshift
+  band = _table_0.band
 end
 local sub, byte, char
 do
@@ -19,7 +14,7 @@ BigEndianBinaryStream = (function()
   local _parent_0 = nil
   local _base_0 = {
     rewind = function(self)
-      self.index = 0
+      self.index = 1
       return 
     end,
     get_byte_at = function(self, index)
@@ -29,7 +24,7 @@ BigEndianBinaryStream = (function()
       local result = 0
       local i = self.index + bytes - 1
       while i >= self.index do
-        result = lshift(result, 8) + self:get_byte_at(i + 1)
+        result = result * 256 + self:get_byte_at(i)
         i = i - 1
       end
       self.index = self.index + bytes
@@ -42,7 +37,7 @@ BigEndianBinaryStream = (function()
       return self:get_number(4)
     end,
     get_string = function(self, len)
-      local res = sub(self.buffer, self.index + 1, self.index + len)
+      local res = sub(self.buffer, self.index, self.index + len - 1)
       self.index = self.index + len
       return res
     end
@@ -74,42 +69,38 @@ read = function(text)
     error('File is not a Zip file')
   end
   buffer:rewind()
+  local index = 0
   local entries = { }
   while buffer:get_int() == MAGIC_NUMBER do
     local entry = { }
-    entry.versionNeeded = buffer:get_short()
-    local bitFlag = buffer:get_short()
-    if band(bitFlag, 0x01) == 0x01 then
+    index = index + 1
+    entry.index = index
+    local version = buffer:get_short()
+    local flags = buffer:get_short()
+    if band(flags, 0x01) == 0x01 then
       error('File contains encrypted entry. Not supported')
     end
-    if band(bitFlag, 0x0800) == 0x0800 then
+    if band(flags, 0x0800) == 0x0800 then
       error('File is using UTF8. Not supported')
     end
-    if band(bitFlag, 0x0008) == 0x0008 then
+    if band(flags, 0x0008) == 0x0008 then
       error('File is using bit 3 trailing data descriptor. Not supported')
     end
-    entry.bitFlags = bitFlags
-    entry.compressionMethod = buffer:get_short()
-    entry.timeBlob = buffer:get_int()
-    entry.crc32 = buffer:get_int()
-    entry.compressedSize = buffer:get_int()
-    entry.uncompressedSize = buffer:get_int()
-    if entry.compressedSize == 0xFFFFFFFF or entry.uncompressedSize == 0xFFFFFFFF then
+    entry.comp_method = buffer:get_short()
+    entry.mtime = buffer:get_int()
+    entry.crc = buffer:get_int()
+    entry.comp_size = buffer:get_int()
+    entry.size = buffer:get_int()
+    if entry.comp_size == 0xFFFFFFFF or entry.size == 0xFFFFFFFF then
       error('File is using Zip64 (4gb+ file size). Not supported')
     end
-    entry.fileNameLength = buffer:get_short()
-    entry.extraFieldLength = buffer:get_short()
-    entry.fileName = buffer:get_string(entry.fileNameLength)
-    entry.extra = buffer:get_string(entry.extraFieldLength)
-    entry.data = buffer:get_string(entry.compressedSize)
-    entry.data = ''
+    local name_len = buffer:get_short()
+    local extra_len = buffer:get_short()
+    entry.name = buffer:get_string(name_len)
+    entry.extra = buffer:get_string(extra_len)
+    entry.data = buffer:get_string(entry.comp_size)
     if type(entry.data) == 'string' then
-      insert(entries, {
-        1
-      })
-      entries[entry.fileName] = {
-        2
-      }
+      entries[entry.name] = entry
     else
       break
     end
@@ -118,6 +109,18 @@ read = function(text)
 end
 local file = require('fs').read_file_sync('test.zip', 'utf8')
 local zip = read(file)
-for k, v in ipairs(zip) do
-  p(k)
-end
+local ffi = require('ffi')
+ffi.cdef([[unsigned long compressBound(unsigned long sourceLen);
+int compress2(uint8_t *dest, unsigned long *destLen,
+      const uint8_t *source, unsigned long sourceLen, int level);
+int uncompress(uint8_t *dest, unsigned long *destLen,
+       const uint8_t *source, unsigned long sourceLen);
+]])
+local zlib = ffi.load(ffi.os == 'Windows' and "zlib1" or 'z')
+local entry = zip['sockjs-sockjs-client-20c0df3/Makefile']
+local data = entry.data
+entry.data = nil
+print(data)
+local Zlib = require('./zlib')
+local s = Zlib.inflate(-15)(data, 'finish')
+p(s)

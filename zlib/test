@@ -1,0 +1,14 @@
+#!/usr/bin/env luvit
+
+local Zlib = require('./')
+assert(not _G.zlib)
+-- brimworks
+if Zlib._VERSION then
+  local s = Zlib.inflate()(require('fs').read_file_sync('data.gz'), 'finish')
+  assert(s == 'test\n')
+-- lzlib
+else
+  local z = Zlib.inflate(require('fs').read_file_sync('data.gz'))
+  local s = z:read(1024)
+  assert(s == 'test\n')
+end

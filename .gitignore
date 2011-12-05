@@ -1,2 +1,3 @@
+syntax: glob
 HZ
-build
+/build/

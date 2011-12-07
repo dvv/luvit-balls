@@ -14,7 +14,7 @@ build/zlib.luvit: build/zlib.c
 build/zlib.c:
 	mkdir -p build
 	#wget http://files.luaforge.net/releases/lzlib/lzlib/lzlib-$(VERSION)/lzlib-$(VERSION).tar.gz -O - | tar -xzpf - -O lzlib-$(VERSION)/lzlib.c >$@
-	wget --no-check-certificate https://github.com/brimworks/lua-zlib/raw/master/lua_zlib.c -O $@
+	wget -qct3 --no-check-certificate https://github.com/brimworks/lua-zlib/raw/master/lua_zlib.c -O $@
 
 clean:
 	rm -fr build

@@ -6,9 +6,7 @@ end
 local sub, byte, char
 do
   local _table_0 = require('string')
-  sub = _table_0.sub
-  byte = _table_0.byte
-  char = _table_0.char
+  sub, byte, char = _table_0.sub, _table_0.byte, _table_0.char
 end
 local insert
 do

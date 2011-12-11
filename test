@@ -1,4 +1,7 @@
 #!/bin/sh
 
-rm unzip.lua
-moonc unzip.moon && luvit unzip.lua
+mkdir -p tmp
+wget https://github.com/luvit/meta-fs/zipball/master -O tmp/meta-fs.zip
+unzip -d tmp tmp/meta-fs.zip
+luvit -e "local unzip = require('./').unzip; unzip('tmp/meta-fs.zip', 'tmp/foo', print)"
+diff -Naur tmp/luvit* tmp/foo/luvit*

@@ -10,7 +10,6 @@ local function walk(stream, options, callback)
 
   -- defaults
   if not options then options = {} end
-  if not options.prefix then options.prefix = '' end
 
   -- data buffer and current position pointers
   local buffer = ''
@@ -91,7 +90,17 @@ local function walk(stream, options, callback)
     if pos + name_len + extra_len + entry.comp_size >= #buffer then return end
 
     -- read entry name and data
-    entry.name = Path.join(options.prefix, get_string(name_len))
+    local name = get_string(name_len)
+    -- strip `options.strip` leading path chunks
+    if options.strip then
+      name = name:gsub('[^/]*/', '', options.strip)
+    end
+    -- prepend entry name with optional prefix
+    if options.prefix then
+      name = Path.join(options.prefix, name)
+    end
+    entry.name = name
+    --
     entry.extra = get_string(extra_len)
     -- TODO: stream compressed data too
     entry.data = get_string(entry.comp_size)
@@ -142,7 +151,7 @@ local function unzip_entry(entry)
     text = entry.data
   end
   -- write inflated entry data
-  -- TODO: strip path components?
+  --p(entry.name)
   Fs.mkdir_p(Path.dirname(entry.name), '0755', function(err)
     Fs.write_file(entry.name, text, function(err)
     end)
@@ -152,13 +161,15 @@ end
 --
 -- unzip
 --
-local function unzip(stream, path, callback)
+local function unzip(stream, options, callback)
+  if not options then options = {} end
   if type(stream) == 'string' then
     stream = Fs.create_read_stream(stream)
   end
   stream:on('entry', unzip_entry)
   return walk(stream, {
-    prefix = path
+    prefix = options.path,
+    strip = options.strip,
   }, callback)
 end
 

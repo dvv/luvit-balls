@@ -92,6 +92,7 @@ local function walk(stream, options, callback)
     -- read entry name and data
     local name = get_string(name_len)
     -- strip `options.strip` leading path chunks
+    -- TODO: strip only `options.strip` components
     if options.strip then
       name = name:gsub('[^/]*/', '', options.strip)
     end
@@ -174,7 +175,21 @@ local function unzip(stream, options, callback)
   }, callback)
 end
 
+--
+-- inflate
+--
+local function inflate(data, callback)
+  -- TODO: should return stream
+  local ok, value = pcall(Zlib.inflate(), data, 'finish')
+  if not ok then
+    callback(value)
+  else
+    callback(nil, value)
+  end
+end
+
 -- export
 return {
   unzip = unzip,
+  inflate = inflate,
 }

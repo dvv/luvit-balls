@@ -92,9 +92,8 @@ local function walk(stream, options, callback)
     -- read entry name and data
     local name = get_string(name_len)
     -- strip `options.strip` leading path chunks
-    -- TODO: strip only `options.strip` components
     if options.strip then
-      name = name:gsub('[^/]*/', '', options.strip)
+      name = name:gsub('[^/]-/', '', tonumber(options.strip))
     end
     -- prepend entry name with optional prefix
     if options.prefix then
@@ -124,7 +123,7 @@ local function walk(stream, options, callback)
   end
   stream:on('data', ondata)
   -- end of stream means we're done ok
-  stream:on('end', function ()
+  stream:once('end', function ()
     callback()
   end)
   -- read error means we're done in error

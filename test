@@ -1,8 +1,9 @@
 #!/bin/sh
 
+rm -fr tmp
 mkdir -p tmp
-wget -q https://github.com/luvit/meta-fs/zipball/master -O tmp/meta-fs.zip
+wget -q https://github.com/dvv/luvit-meta-fs/zipball/master -O tmp/meta-fs.zip
 unzip -d tmp tmp/meta-fs.zip >/dev/null 2>&1
-luvit -e "local unzip = require('./').unzip; unzip('tmp/meta-fs.zip', 'tmp/foo', print)"
-echo 'DIFF'
-diff -Naur tmp/luvit* tmp/foo/luvit*
+luvit -e "local unzip = require('./').unzip; unzip('tmp/meta-fs.zip', {path='tmp/foo'}, print)"
+#echo 'DIFF'
+diff -Naur tmp/dvv-luvit* tmp/foo/dvv-luvit* && rm -fr tmp

@@ -109,7 +109,7 @@ local function walk(stream, options, callback)
     anchor = 1
 
     -- fire 'entry' event
-    stream:emit('entry', entry)
+    stream:emit('entry', stream, entry)
     -- process next entry
     parse()
 
@@ -123,11 +123,11 @@ local function walk(stream, options, callback)
   end
   stream:on('data', ondata)
   -- end of stream means we're done ok
-  stream:on('end', function()
-    stream:emit('error')
+  stream:on('end', function ()
+    callback()
   end)
   -- read error means we're done in error
-  stream:once('error', function(err)
+  stream:once('error', function (err)
     stream:remove_listener('data', ondata)
     callback(err)
   end)
@@ -138,7 +138,7 @@ end
 --
 -- inflate and save to file specified zip entry
 --
-local function unzip_entry(entry)
+local function unzip_entry(stream, entry)
   -- inflate
   local text
   local ok
@@ -152,8 +152,9 @@ local function unzip_entry(entry)
   end
   -- write inflated entry data
   --p(entry.name)
-  Fs.mkdir_p(Path.dirname(entry.name), '0755', function(err)
-    Fs.write_file(entry.name, text, function(err)
+  Fs.mkdir_p(Path.dirname(entry.name), '0755', function (err)
+    if err then stream:emit('error', err) ; return end
+    Fs.write_file(entry.name, text, function (err)
     end)
   end)
 end

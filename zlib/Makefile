@@ -9,7 +9,7 @@ all: module
 module: build/zlib.luvit
 
 build/zlib.luvit: build/zlib.c
-	$(CC) -I$(LUA_DIR) -shared -o $@ $^ -lz
+	$(CC) `luvit-config --cflags` -shared -o $@ $^ -lz
 
 build/zlib.c:
 	mkdir -p build
@@ -18,6 +18,9 @@ build/zlib.c:
 
 clean:
 	rm -fr build
+
+test:
+	checkit tests/smoke.lua
 
 .PHONY: all module clean
 .SILENT:

@@ -1,15 +1,22 @@
+Balls
+=====
+
+Collection of helpers to deal with zipballs
+
 Usage
 -----
 
-    -- import
-    local unzip = require('balls').unzip
+```lua
+-- import
+local unzip = require('balls').unzip
 
-    -- unzip zipball 'foo.zip' into ./foo/zip
-    unzip('foo.zip', 'foo/zip', function(err)
-      print('DONE', err)
-    end)
+-- unzip zipball 'foo.zip' into ./foo/zip
+unzip('foo.zip', { path = 'foo/zip' }, function(err)
+  print('DONE', err)
+end)
+```
 
 License
--------
+-----
 
-Check [here](license.txt).
+[MIT](luvit-balls.txt)

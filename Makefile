@@ -4,7 +4,8 @@ module:
 	$(MAKE) -C zlib
 
 clean:
-	rm -fr tmp zlib/build
+	rm -fr tmp
+	$(MAKE) -C zlib clean
 
 test: module
 	checkit tests/buffer.lua tests/inflate.lua

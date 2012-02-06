@@ -154,7 +154,7 @@ local function unzip_entry(stream, entry)
   --p(entry.name)
   Fs.mkdir_p(Path.dirname(entry.name), '0755', function (err)
     if err then stream:emit('error', err) ; return end
-    Fs.write_file(entry.name, text, function (err)
+    Fs.writeFile(entry.name, text, function (err)
     end)
   end)
 end
@@ -165,7 +165,7 @@ end
 local function unzip(stream, options, callback)
   if not options then options = {} end
   if type(stream) == 'string' then
-    stream = Fs.create_read_stream(stream)
+    stream = Fs.createReadStream(stream)
   end
   stream:on('entry', unzip_entry)
   return walk(stream, {

@@ -1,6 +1,7 @@
 local Fs = require('meta-fs')
 local Path = require('path')
 local Zlib = require('../zlib')
+local Worker = require('worker').Worker
 local band = require('bit').band
 
 --
@@ -115,7 +116,6 @@ local function walk(stream, options, callback)
 
   end
 
-  --
   -- feed data to parser
   local function ondata(data)
     buffer = buffer .. data
@@ -177,7 +177,7 @@ end
 --
 -- inflate
 --
-local function inflate(data, callback)
+local function inflate_blocking(data, callback)
   -- TODO: should return stream
   local ok, value = pcall(Zlib.inflate(), data, 'finish')
   if not ok then
@@ -185,6 +185,15 @@ local function inflate(data, callback)
   else
     callback(nil, value)
   end
+end
+
+local function inflate(data, callback)
+  -- TODO: should return stream
+  Worker:new():on('end', function (text)
+    callback(nil, text)
+  end):on('error', function (err)
+    callback(err)
+  end):run(Zlib.inflate(), data, 'finish')
 end
 
 -- export

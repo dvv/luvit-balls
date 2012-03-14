@@ -5,5 +5,6 @@ return {
   author = "Vladimir Dronnikov <dronnikov@gmail.com>",
   dependencies = {
     ["meta-fs"] = "https://github.com/dvv/luvit-meta-fs/zipball/master",
+    worker = "https://github.com/dvv/luvit-worker/zipball/master",
   },
 }

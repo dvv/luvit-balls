@@ -1,19 +1,26 @@
 Balls
 =====
 
-Collection of helpers to deal with zipballs
+Collection of helpers to deal with compressed data
 
 Usage
 -----
 
 ```lua
--- import
-local unzip = require('balls').unzip
+local Zlib = require('balls').Zlib
 
--- unzip zipball 'foo.zip' into ./foo/zip
-unzip('foo.zip', { path = 'foo/zip' }, function(err)
-  print('DONE', err)
+local file = require('fs').createReadStream(__dirname .. '/test.gz', {
+  chunk_size = 1,
+})
+
+local gunzip = Zlib.inflator()
+gunzip:on('data', function (text)
+  print('CHUNK', text)
 end)
+gunzip:on('end', function ()
+  print('GUNZIPPED')
+end)
+file:pipe(gunzip)
 ```
 
 License

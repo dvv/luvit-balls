@@ -1,6 +1,1 @@
-local Zip = require('./lib/zip').Zip
-
--- export
-return {
-  Zip = Zip,
-}
+return require('./lib/zip')

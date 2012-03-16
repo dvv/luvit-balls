@@ -145,4 +145,5 @@ end
 -- export
 return {
   Zip = Zip,
+  Zlib = Zlib,
 }

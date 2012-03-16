@@ -6,4 +6,4 @@ wget -q https://github.com/dvv/luvit-meta-fs/zipball/master -O tmp/meta-fs.zip
 unzip -d tmp tmp/meta-fs.zip >/dev/null 2>&1
 luvit -i -e "local unzip = require('./').unzip; unzip('tmp/meta-fs.zip', {path='tmp/foo'}, print)"
 #echo 'DIFF'
-diff -Naur tmp/dvv-luvit* tmp/foo/dvv-luvit* && rm -fr tmp
+#diff -Naur tmp/dvv-luvit* tmp/foo/dvv-luvit* && rm -fr tmp

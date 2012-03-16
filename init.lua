@@ -1,7 +1,6 @@
-local Zip = require('./lib/zip')
+local Zip = require('./lib/zip').Zip
 
 -- export
 return {
-  unzip = Zip.unzip,
-  inflate = Zip.inflate,
+  Zip = Zip,
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env luvit
 
-local Zip = require('./zip').Zip
+local Zip = require('../lib/zip').Zip
+
 --
 -- unzip
 --
@@ -24,11 +25,19 @@ local function unzip(stream, options, callback)
   end)
 end
 
-
-
---local fp = require('fs').createReadStream('zlib.zip')
-local fp = require('fs').createReadStream('python26.zip')
---local fp = require('fs').createReadStream('chrome-win32.zip')
---fp:pipe(process.stdout)
-
-Zip:new(fp):on('entry', function(entry) print(entry.name) end)
+local entries = {}
+local uzip = Zip:new(
+    require('fs').createReadStream(__dirname .. '/test.zip'),
+    {
+      inflateOptions = -15
+    }
+  )
+  :on('entry', function (entry)
+    entries[#entries + 1] = entry
+    p('E', entry.name, entry.comp_method)
+  end)
+  :on('end', function ()
+    assert(#entries == 2)
+    assert(entries[1].name == 'all.gyp')
+    assert(entries[2].name == 'license.txt')
+  end)

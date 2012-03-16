@@ -1,27 +1,12 @@
 local band = require('bit').band
-
-local function inflate(data, callback)
-  local Zlib = require('../build/zlib')
-  local fn = Zlib.inflate(-15)
-  local text
-  local ok
-  -- TODO: how to stream data?
-  -- TODO: queue_work
-  debug('DEFL?', #data)
-  --[[ok, text = pcall(Zlib.inflate(-15), data, 'finish')
-  if not ok then text = '' end
-  callback(nil, text)]]--
-  require('worker').run(Zlib.inflate(-15), data, 'finish', function (err, text)
-    debug('DEFL!', err, text)
-    callback(err, text)
-  end)
-end
+local Zlib = require('./zlib')
 
 --
 -- Zip archive walker
 --
-local Zip = require('core').Emitter:extend()
+local Zip = require('core').iStream:extend()
 
+-- TODO: make it more pure iStream
 function Zip:initialize(stream, options)
 
   -- defaults
@@ -104,18 +89,20 @@ function Zip:initialize(stream, options)
       self:emit('error', { code = 'ENOTSUPP', message = err })
     end
 
-    -- wait until compressed data available
+    -- read entry name and data
     local name_len = get_number(2)
     local extra_len = get_number(2)
+    if #buffer < pos + name_len + extra_len then
+      return
+    end
+    entry.name = get_string(name_len)
+    entry.extra = get_string(extra_len)
+
+    -- wait until compressed data available
+    -- TODO: we should stream here until entry.comp_size octets are seen!
     if pos + name_len + extra_len + entry.comp_size >= #buffer then
       return
     end
-
-    -- read entry name and data
-    entry.name = get_string(name_len)
-    --
-    entry.extra = get_string(extra_len)
-    -- TODO: stream compressed data too
     entry.data = get_string(entry.comp_size)
     -- shift the buffer, to save memory
     buffer = buffer:sub(pos)
@@ -126,15 +113,15 @@ function Zip:initialize(stream, options)
       -- fire 'entry' event
       self:emit('entry', entry)
     else
-      inflate(entry.data, function (err, data)
-        if err then
-          self:emit('error', err)
-        else
-          -- fire 'entry' event
-          entry.data = data
-          self:emit('entry', entry)
-        end
+      local z = Zlib.inflator(options.inflateOptions)
+      z:on('end', function ()
+        -- fire 'entry' event
+        entry.data = data
+        self:emit('entry', entry)
       end)
+      z:write(entry.data)
+      -- ???
+      z:done()
     end
 
     -- process next entry
@@ -158,5 +145,4 @@ end
 -- export
 return {
   Zip = Zip,
-  inflate = inflate,
 }

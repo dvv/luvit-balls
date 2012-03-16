@@ -1,16 +1,37 @@
-local Fs = require('meta-fs')
-local Path = require('path')
-local Zlib = require('../zlib')
-local Worker = require('worker').Worker
 local band = require('bit').band
 
+local function inflate(data, callback)
+  local Zlib = require('../build/zlib')
+  local fn = Zlib.inflate(-15)
+  local text
+  local ok
+  -- TODO: how to stream data?
+  -- TODO: queue_work
+  debug('DEFL?', #data)
+  --[[ok, text = pcall(Zlib.inflate(-15), data, 'finish')
+  if not ok then text = '' end
+  callback(nil, text)]]--
+  require('worker').run(Zlib.inflate(-15), data, 'finish', function (err, text)
+    debug('DEFL!', err, text)
+    callback(err, text)
+  end)
+end
+
 --
--- walk over entries of a zipball read from `stream`
+-- Zip archive walker
 --
-local function walk(stream, options, callback)
+local Zip = require('core').Emitter:extend()
+
+function Zip:initialize(stream, options)
 
   -- defaults
-  if not options then options = {} end
+  options = options or {}
+
+  -- we accept streams or filenames
+  -- TODO: better to use strings to directly pass the buffer?
+  if type(stream) == 'string' then
+    stream = Fs.createReadStream(stream)
+  end
 
   -- data buffer and current position pointers
   local buffer = ''
@@ -38,6 +59,7 @@ local function walk(stream, options, callback)
 
   -- parse collected buffer
   local function parse()
+
     pos = anchor
     -- wait until header is available
     if pos + 30 >= #buffer then return end
@@ -48,11 +70,11 @@ local function walk(stream, options, callback)
       -- start of central directory?
       if signature == 'PK\001\002' then
         -- unzipping is done
-        stream:emit('end')
+        self:emit('end')
       -- signature is not ok
       else
         -- report error
-        stream:emit('error', 'File is not a Zip file')
+        self:emit('error', 'not a Zip file')
       end
       return
     end
@@ -70,37 +92,27 @@ local function walk(stream, options, callback)
     -- sanity check
     local err = nil
     if band(flags, 0x01) == 0x01 then
-      err = 'File contains encrypted entry'
+      err = 'encrypted entry'
     elseif band(flags, 0x0800) == 0x0800 then
-      err = 'File is using UTF8'
+      err = 'using UTF8'
     elseif band(flags, 0x0008) == 0x0008 then
-      err = 'File is using bit 3 trailing data descriptor'
+      err = 'using bit 3 trailing data descriptor'
     elseif entry.comp_size == 0xFFFFFFFF or entry.size == 0xFFFFFFFF then
-      err = 'File is using Zip64 (4gb+ file size)'
+      err = 'using Zip64'
     end
     if err then
-      stream:emit('error', {
-        code = 'ENOTSUPP',
-        message = err,
-      })
+      self:emit('error', { code = 'ENOTSUPP', message = err })
     end
 
     -- wait until compressed data available
     local name_len = get_number(2)
     local extra_len = get_number(2)
-    if pos + name_len + extra_len + entry.comp_size >= #buffer then return end
+    if pos + name_len + extra_len + entry.comp_size >= #buffer then
+      return
+    end
 
     -- read entry name and data
-    local name = get_string(name_len)
-    -- strip `options.strip` leading path chunks
-    if options.strip then
-      name = name:gsub('[^/]-/', '', tonumber(options.strip))
-    end
-    -- prepend entry name with optional prefix
-    if options.prefix then
-      name = Path.join(options.prefix, name)
-    end
-    entry.name = name
+    entry.name = get_string(name_len)
     --
     entry.extra = get_string(extra_len)
     -- TODO: stream compressed data too
@@ -109,8 +121,22 @@ local function walk(stream, options, callback)
     buffer = buffer:sub(pos)
     anchor = 1
 
-    -- fire 'entry' event
-    stream:emit('entry', stream, entry)
+    -- comp_method == 0 means data is stored as-is
+    if entry.comp_method == 0 then
+      -- fire 'entry' event
+      self:emit('entry', entry)
+    else
+      inflate(entry.data, function (err, data)
+        if err then
+          self:emit('error', err)
+        else
+          -- fire 'entry' event
+          entry.data = data
+          self:emit('entry', entry)
+        end
+      end)
+    end
+
     -- process next entry
     parse()
 
@@ -122,82 +148,15 @@ local function walk(stream, options, callback)
     parse()
   end
   stream:on('data', ondata)
-  -- end of stream means we're done ok
-  stream:once('end', function ()
-    callback()
-  end)
-  -- read error means we're done in error
   stream:once('error', function (err)
-    stream:remove_listener('data', ondata)
-    callback(err)
+    stream:removeListener('data', ondata)
+    self:emit('error', err)
   end)
 
-  return stream
-end
-
---
--- inflate and save to file specified zip entry
---
-local function unzip_entry(stream, entry)
-  -- inflate
-  local text
-  local ok
-  -- comp_method == 0 means data is stored as-is
-  if entry.comp_method > 0 then
-    -- TODO: how to stream data?
-    ok, text = pcall(Zlib.inflate(-15), entry.data, 'finish')
-    if not ok then text = '' end
-  else
-    text = entry.data
-  end
-  -- write inflated entry data
-  --p(entry.name)
-  Fs.mkdir_p(Path.dirname(entry.name), '0755', function (err)
-    if err then stream:emit('error', err) ; return end
-    Fs.writeFile(entry.name, text, function (err)
-    end)
-  end)
-end
-
---
--- unzip
---
-local function unzip(stream, options, callback)
-  if not options then options = {} end
-  if type(stream) == 'string' then
-    stream = Fs.createReadStream(stream)
-  end
-  stream:on('entry', unzip_entry)
-  return walk(stream, {
-    prefix = options.path,
-    strip = options.strip,
-  }, callback)
-end
-
---
--- inflate
---
-local function inflate_blocking(data, callback)
-  -- TODO: should return stream
-  local ok, value = pcall(Zlib.inflate(), data, 'finish')
-  if not ok then
-    callback(value)
-  else
-    callback(nil, value)
-  end
-end
-
-local function inflate(data, callback)
-  -- TODO: should return stream
-  Worker:new():on('end', function (text)
-    callback(nil, text)
-  end):on('error', function (err)
-    callback(err)
-  end):run(Zlib.inflate(), data, 'finish')
 end
 
 -- export
 return {
-  unzip = unzip,
+  Zip = Zip,
   inflate = inflate,
 }

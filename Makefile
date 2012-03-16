@@ -1,11 +1,14 @@
+#CFLAGS += -DEXPOSE_CONSTANTS
+
 all: module
 
-module:
-	$(MAKE) -C zlib
+module: build/zlib.luvit
+build/zlib.luvit: src/zlib.c
+	mkdir -p build
+	$(CC) $(CFLAGS) -Isrc/ -shared -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -fr tmp
-	$(MAKE) -C zlib clean
+	rm -fr build tmp
 
 test: module
 	checkit tests/buffer.lua tests/inflate.lua
